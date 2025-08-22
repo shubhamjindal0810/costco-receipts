@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Costco Receipts Table</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #004B87;
+            color: white;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f0f8ff;
+        }
+        .date {
+            white-space: nowrap;
+        }
+        .amount {
+            text-align: right;
+            font-weight: bold;
+        }
+        .fuel-row {
+            background-color: #fff3cd;
+        }
+        .refund-row {
+            background-color: #f8d7da;
+        }
+        .donation-row {
+            background-color: #d1ecf1;
+        }
+        .shopcard-row {
+            background-color: #d4edda;
+        }
+        .filter-container {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        label {
+            font-weight: bold;
+            color: #333;
+        }
+        input, select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Costco Purchase History</h1>
+        
+        <div class="filter-container">
+            <div class="filter-group">
+                <label for="dateFilter">Filter by Date:</label>
+                <input type="date" id="dateFilter" onchange="filterTable()">
+            </div>
+            <div class="filter-group">
+                <label for="itemFilter">Search Items:</label>
+                <input type="text" id="itemFilter" placeholder="Search item names..." onkeyup="filterTable()">
+            </div>
+            <div class="filter-group">
+                <label for="typeFilter">Transaction Type:</label>
+                <select id="typeFilter" onchange="filterTable()">
+                    <option value="">All</option>
+                    <option value="fuel">Fuel</option>
+                    <option value="warehouse">Warehouse</option>
+                    <option value="shopcard">Shop Card</option>
+                    <option value="refund">Refunds</option>
+                </select>
+            </div>
+        </div>
+
+        <table id="receiptsTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Item Name</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Rebates</th>
+                    <th>Total Amount</th>
+                    <th>Type</th>
+                    <th>Location</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- Data will be populated by JavaScript -->
+            </tbody>
+        </table>
+
+        <div class="summary" id="summary">
+            <!-- Summary will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        let receiptData = [];
+        let allRows = [];
+        let filteredRows = [];
+
+        // Load JSON data from external file
+        async function loadReceiptData() {
+            try {
+            showLoadingMessage('Loading receipt data...');
+                const response = await fetch('costco-receipts.json');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                receiptData = await response.json();
+                hideLoadingMessage();
+                parseData();
+                renderTable();
+            } catch (error) {
+                console.error('Error loading receipt data:', error);
+                showErrorMessage(`Failed to load receipt data: ${error.message}`);
+            }
+        }
+
+        function showLoadingMessage(message) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 40px;">${message}</td></tr>`;
+        }
+
+        function showErrorMessage(message) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 40px; color: red;">
+                        ${message}<br><br>
+                        <strong>Make sure the 'costco-receipts.json' file is in the same folder as this HTML file.</strong>
+                    </td>
+                </tr>
+            `;
+        }
+
+        function hideLoadingMessage() {
+            // Loading message will be replaced by the actual table data
+        }
+
+        function parseData() {
+            allRows = [];
+            
+            receiptData.forEach(receipt => {
+                const date = new Date(receipt.transactionDateTime).toLocaleDateString();
+                const location = `${receipt.warehouseName}, ${receipt.warehouseState}`;
+                const transactionType = receipt.transactionType;
+                const documentType = receipt.documentType;
+                
+                let type = 'warehouse';
+                if (documentType === 'FuelReceipts') {
+                    type = 'fuel';
+                } else if (transactionType === 'Refund') {
+                    type = 'refund';
+                }
+                
+                // Process items and handle rebates
+                const processedItems = processItemsWithRebates(receipt.itemArray, type);
+                
+                processedItems.forEach(processedItem => {
+                    let itemName = processedItem.itemName;
+                    
+                    // Clean up item names
+                    if (itemName === '') itemName = processedItem.itemDescription01 || 'Unknown Item';
+                    if (itemName.includes('REGULAR GAS')) itemName = 'Regular Gasoline';
+                    if (itemName.includes('CMN-DONATION')) itemName = 'Donation';
+                    if (itemName.includes('GS SIGN UP')) itemName = 'Membership Fee';
+                    
+                    // Determine final type
+                    let finalType = processedItem.type || type;
+                    if (processedItem.itemDescription01 === 'SHOP CARD') {
+                        finalType = 'shopcard';
+                        itemName = 'Costco Shop Card';
+                    }
+                    
+                    allRows.push({
+                        date: date,
+                        itemName: itemName,
+                        quantity: processedItem.quantity,
+                        unitPrice: processedItem.unitPrice ? `${processedItem.unitPrice.toFixed(2)}` : 'N/A',
+                        rebates: processedItem.rebates ? `-${processedItem.rebates.toFixed(2)}` : '',
+                        totalAmount: `${Math.abs(processedItem.totalAmount).toFixed(2)}`,
+                        type: finalType,
+                        location: location,
+                        rawDate: new Date(receipt.transactionDateTime),
+                        rawAmount: Math.abs(processedItem.totalAmount),
+                        isNegative: processedItem.totalAmount < 0
+                    });
+                });
+            });
+            
+            // Sort by date (newest first)
+            allRows.sort((a, b) => b.rawDate - a.rawDate);
+            filteredRows = [...allRows];
+        }
+
+        function processItemsWithRebates(itemArray, defaultType) {
+            const processedItems = [];
+            const usedRebateIndices = new Set();
+            
+            itemArray.forEach((item, index) => {
+                // Skip if this item is a rebate that we've already processed
+                if (usedRebateIndices.has(index)) return;
+                
+                // Check if this is a rebate item (negative amount with reference pattern)
+                if (item.amount < 0 && (item.itemDescription01?.startsWith('/') || item.itemNumber?.startsWith('35'))) {
+                    // This is an orphaned rebate - will be handled separately
+                    if (!findMatchingItemForRebate(itemArray, item, index)) {
+                        processedItems.push({
+                            itemName: item.itemActualName || item.itemDescription01 || 'Rebate/Discount',
+                            quantity: Math.abs(item.unit || 1),
+                            unitPrice: 0,
+                            rebates: 0,
+                            totalAmount: item.amount,
+                            type: 'refund',
+                            itemDescription01: item.itemDescription01
+                        });
+                    }
+                    return;
+                }
+                
+                // For regular items, look for associated rebates
+                let totalRebates = 0;
+                const rebateIndices = [];
+                
+                // Look for rebates that reference this item
+                itemArray.forEach((potentialRebate, rebateIndex) => {
+                    if (rebateIndex <= index || usedRebateIndices.has(rebateIndex)) return;
+                    
+                    if (potentialRebate.amount < 0 && isRebateForItem(item, potentialRebate, index, rebateIndex, itemArray)) {
+                        totalRebates += Math.abs(potentialRebate.amount);
+                        rebateIndices.push(rebateIndex);
+                    }
+                });
+                
+                // Mark rebate indices as used
+                rebateIndices.forEach(idx => usedRebateIndices.add(idx));
+                
+                // Calculate final amount
+                const finalAmount = item.amount - totalRebates;
+                
+                processedItems.push({
+                    itemName: item.itemActualName || item.itemDescription01 || 'Unknown Item',
+                    quantity: item.unit || 1,
+                    unitPrice: item.itemUnitPriceAmount || 0,
+                    rebates: totalRebates,
+                    totalAmount: finalAmount,
+                    type: defaultType,
+                    itemDescription01: item.itemDescription01
+                });
+            });
+            
+            return processedItems;
+        }
+
+        function isRebateForItem(item, rebate, itemIndex, rebateIndex, itemArray) {
+            // Check if rebate references this item's number
+            if (rebate.itemDescription01 === `/${item.itemNumber}`) {
+                return true;
+            }
+            
+            // Check if it's the next item in sequence and in same department
+            if (rebateIndex === itemIndex + 1 && item.itemDepartmentNumber === rebate.itemDepartmentNumber) {
+                return true;
+            }
+            
+            // Find closest item with matching reference
+            if (rebate.itemDescription01?.startsWith('/')) {
+                const referencedItemNumber = rebate.itemDescription01.substring(1);
+                for (let i = Math.max(0, rebateIndex - 5); i < Math.min(itemArray.length, rebateIndex + 5); i++) {
+                    if (itemArray[i].itemNumber === referencedItemNumber) {
+                        return i === itemIndex;
+                    }
+                }
+            }
+            
+            return false;
+        }
+
+        function findMatchingItemForRebate(itemArray, rebate, rebateIndex) {
+            // Check for exact item number reference
+            if (rebate.itemDescription01?.startsWith('/')) {
+                const referencedItemNumber = rebate.itemDescription01.substring(1);
+                return itemArray.some(item => item.itemNumber === referencedItemNumber);
+            }
+            
+            // Check sequential order
+            if (rebateIndex > 0) {
+                const previousItem = itemArray[rebateIndex - 1];
+                return previousItem.amount > 0 && previousItem.itemDepartmentNumber === rebate.itemDepartmentNumber;
+            }
+            
+            return false;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            filteredRows.forEach(row => {
+                const tr = document.createElement('tr');
+                
+                // Add special classes for different types
+                if (row.type === 'fuel') {
+                    tr.classList.add('fuel-row');
+                } else if (row.type === 'refund' || row.isNegative) {
+                    tr.classList.add('refund-row');
+                } else if (row.type === 'shopcard') {
+                    tr.classList.add('shopcard-row');
+                } else if (row.itemName.includes('Donation')) {
+                    tr.classList.add('donation-row');
+                }
+                
+                tr.innerHTML = `
+                    <td class="date">${row.date}</td>
+                    <td>${row.itemName}</td>
+                    <td class="amount">${row.quantity}</td>
+                    <td class="amount">${row.unitPrice}</td>
+                    <td class="amount">${row.rebates}</td>
+                    <td class="amount">${row.isNegative ? '-' : ''}${row.totalAmount}</td>
+                    <td>${row.type.charAt(0).toUpperCase() + row.type.slice(1)}</td>
+                    <td>${row.location}</td>
+                `;
+                
+                tbody.appendChild(tr);
+            });
+            
+            updateSummary();
+        }
+
+        function filterTable() {
+            const dateFilter = document.getElementById('dateFilter').value;
+            const itemFilter = document.getElementById('itemFilter').value.toLowerCase();
+            const typeFilter = document.getElementById('typeFilter').value;
+            
+            filteredRows = allRows.filter(row => {
+                let matchesDate = true;
+                let matchesItem = true;
+                let matchesType = true;
+                
+                if (dateFilter) {
+                    const filterDate = new Date(dateFilter);
+                    matchesDate = row.rawDate.toDateString() === filterDate.toDateString();
+                }
+                
+                if (itemFilter) {
+                    matchesItem = row.itemName.toLowerCase().includes(itemFilter);
+                }
+                
+                if (typeFilter) {
+                    matchesType = row.type === typeFilter;
+                }
+                
+                return matchesDate && matchesItem && matchesType;
+            });
+            
+            renderTable();
+        }
+
+        function updateSummary() {
+            const totalTransactions = filteredRows.length;
+            const totalSpent = filteredRows.reduce((sum, row) => {
+                return sum + (row.isNegative ? -row.rawAmount : row.rawAmount);
+            }, 0);
+            
+            const fuelTransactions = filteredRows.filter(row => row.type === 'fuel').length;
+            const warehouseTransactions = filteredRows.filter(row => row.type === 'warehouse').length;
+            const shopcardTransactions = filteredRows.filter(row => row.type === 'shopcard').length;
+            const refundTransactions = filteredRows.filter(row => row.type === 'refund' || row.isNegative).length;
+            
+            const fuelSpent = filteredRows
+                .filter(row => row.type === 'fuel')
+                .reduce((sum, row) => sum + row.rawAmount, 0);
+            
+            const warehouseSpent = filteredRows
+                .filter(row => row.type === 'warehouse' && !row.isNegative)
+                .reduce((sum, row) => sum + row.rawAmount, 0);
+            
+            const shopcardSpent = filteredRows
+                .filter(row => row.type === 'shopcard')
+                .reduce((sum, row) => sum + row.rawAmount, 0);
+            
+            // Calculate total rebates
+            const totalRebates = filteredRows
+                .filter(row => row.rebates)
+                .reduce((sum, row) => {
+                    const rebateAmount = parseFloat(row.rebates.replace(/[-$]/g, ''));
+                    return sum + rebateAmount;
+                }, 0);
+            
+            document.getElementById('summary').innerHTML = `
+                <h3>Summary</h3>
+                <p><strong>Total Transactions:</strong> ${totalTransactions}</p>
+                <p><strong>Total Amount:</strong> ${totalSpent.toFixed(2)}</p>
+                <p><strong>Total Rebates Saved:</strong> ${totalRebates.toFixed(2)}</p>
+                <p><strong>Fuel Transactions:</strong> ${fuelTransactions} (${fuelSpent.toFixed(2)})</p>
+                <p><strong>Warehouse Transactions:</strong> ${warehouseTransactions} (${warehouseSpent.toFixed(2)})</p>
+                <p><strong>Shop Card Purchases:</strong> ${shopcardTransactions} (${shopcardSpent.toFixed(2)})</p>
+                <p><strong>Refunds/Returns:</strong> ${refundTransactions}</p>
+            `;
+        }
+
+        // Initialize the table
+        document.addEventListener('DOMContentLoaded', function() {
+            loadReceiptData();
+        });
+    </script>
+</body>
+</html>

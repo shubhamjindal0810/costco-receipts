@@ -4,6 +4,58 @@
     "documentType": "FuelReceipts",
     "itemArray": [
       {
+        "amount": 55.11,
+        "entryMethod": null,
+        "fuelGradeCode": "1",
+        "fuelGradeDescription": "Regular",
+        "fuelGradeDescriptionFr": null,
+        "fuelUnitQuantity": 13.781,
+        "fuelUomCode": "GAL",
+        "fuelUomDescription": null,
+        "fuelUomDescriptionFr": null,
+        "fullItemImage": "",
+        "itemActualName": "",
+        "itemDepartmentNumber": 53,
+        "itemDescription01": "REGULAR GAS",
+        "itemDescription02": null,
+        "itemIdentifier": null,
+        "itemNumber": "800599",
+        "itemUnitPriceAmount": 3.999,
+        "merchantID": null,
+        "taxFlag": null,
+        "transDepartmentNumber": 53,
+        "unit": 1
+      }
+    ],
+    "receiptType": "Gas Station",
+    "subTotal": 55.11,
+    "taxes": 0,
+    "tenderArray": [
+      {
+        "amountTender": 55.11,
+        "tenderDescription": null,
+        "tenderTypeCode": "CreditDebit"
+      }
+    ],
+    "total": 55.11,
+    "totalItemCount": 1,
+    "transactionBarcode": "21042310065162508211717",
+    "transactionDateTime": "2025-08-21T17:17:00",
+    "transactionType": "Sales",
+    "warehouseAddress1": "150 LAWRENCE STATION RD",
+    "warehouseAddress2": null,
+    "warehouseCity": "SUNNYVALE",
+    "warehouseCountry": "US",
+    "warehouseName": "Sunnyvale",
+    "warehouseNumber": 423,
+    "warehousePostalCode": "94086",
+    "warehouseState": "CA"
+  },
+  {
+    "couponArray": [],
+    "documentType": "FuelReceipts",
+    "itemArray": [
+      {
         "amount": 52.78,
         "entryMethod": null,
         "fuelGradeCode": "1",

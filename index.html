@@ -122,6 +122,7 @@
                 <tr>
                     <th>Date</th>
                     <th>Item Name</th>
+                    <th>Item Number</th>
                     <th>Quantity</th>
                     <th>Unit Price</th>
                     <th>Rebates</th>
@@ -167,14 +168,14 @@
 
         function showLoadingMessage(message) {
             const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 40px;">${message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 40px;">${message}</td></tr>`;
         }
 
         function showErrorMessage(message) {
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" style="text-align: center; padding: 40px; color: red;">
+                    <td colspan="9" style="text-align: center; padding: 40px; color: red;">
                         ${message}<br><br>
                         <strong>Make sure the 'costco-receipts.json' file is in the same folder as this HTML file.</strong>
                     </td>
@@ -224,6 +225,7 @@
                     allRows.push({
                         date: date,
                         itemName: itemName,
+                        itemNumber: processedItem.itemNumber || 'N/A',
                         quantity: processedItem.quantity,
                         unitPrice: processedItem.unitPrice ? `${processedItem.unitPrice.toFixed(2)}` : 'N/A',
                         rebates: processedItem.rebates ? `-${processedItem.rebates.toFixed(2)}` : '',
@@ -256,6 +258,7 @@
                     if (!findMatchingItemForRebate(itemArray, item, index)) {
                         processedItems.push({
                             itemName: item.itemActualName || item.itemDescription01 || 'Rebate/Discount',
+                            itemNumber: item.itemNumber,
                             quantity: Math.abs(item.unit || 1),
                             unitPrice: 0,
                             rebates: 0,
@@ -289,6 +292,7 @@
                 
                 processedItems.push({
                     itemName: item.itemActualName || item.itemDescription01 || 'Unknown Item',
+                    itemNumber: item.itemNumber,
                     quantity: item.unit || 1,
                     unitPrice: item.itemUnitPriceAmount || 0,
                     rebates: totalRebates,
@@ -362,6 +366,7 @@
                 tr.innerHTML = `
                     <td class="date">${row.date}</td>
                     <td>${row.itemName}</td>
+                    <td>${row.itemNumber}</td>
                     <td class="amount">${row.quantity}</td>
                     <td class="amount">${row.unitPrice}</td>
                     <td class="amount">${row.rebates}</td>
